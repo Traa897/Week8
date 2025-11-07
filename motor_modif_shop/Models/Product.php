@@ -484,15 +484,16 @@ class Product {
     }
 
     public function getAllActive() {
-    $sql = "SELECT p.*, c.name as category_name, s.name as supplier_name 
-            FROM {$this->table} p
-            LEFT JOIN categories c ON p.category_id = c.id
-            LEFT JOIN suppliers s ON p.supplier_id = s.id
-            WHERE p.deleted_at IS NULL
-            AND p.stock > 0  // Hanya produk yang ada stoknya
-            ORDER BY p.name ASC";  // Urutkan A-Z
-    
-    $result = $this->conn->query($sql);
-    return $result->fetch_all(MYSQLI_ASSOC);
+        $sql = "SELECT p.*, c.name as category_name, s.name as supplier_name 
+                FROM {$this->table} p
+                LEFT JOIN categories c ON p.category_id = c.id
+                LEFT JOIN suppliers s ON p.supplier_id = s.id
+                WHERE p.deleted_at IS NULL
+                AND p.stock > 0
+                ORDER BY p.name ASC";
+        
+        $result = $this->conn->query($sql);
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
 }
-}
+
