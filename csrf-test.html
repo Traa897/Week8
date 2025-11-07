@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSRF Attack Simulation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            padding: 40px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #dc3545;
+            border-bottom: 4px solid #dc3545;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .alert {
+            border-left: 5px solid;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        form {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+            border: 2px dashed #dc3545;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #c82333;
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-skull-crossbones"></i> CSRF Attack Simulation</h1>
+        
+        <div class="alert alert-warning">
+            <h4><i class="fas fa-exclamation-triangle"></i> WARNING: Malicious Form Detected!</h4>
+            <p class="mb-0">
+                Form ini mencoba mengirim data ke server <span style="background:#ffeb3b;padding:3px 8px;font-weight:bold;">TANPA CSRF TOKEN</span>. 
+                Jika server tidak dilindungi, data akan masuk ke database!
+            </p>
+        </div>
+        
+        <h3><i class="fas fa-lock-open"></i> Malicious Form (No CSRF Protection)</h3>
+        
+        <!-- FORM ATTACK - TIDAK ADA CSRF TOKEN! -->
+        <form method="POST" action="index.php?c=products&a=store">
+            <h4 class="text-danger mb-4"><i class="fas fa-bug"></i> Inject Fake Product</h4>
+            
+            <label>Category ID:</label>
+            <input type="number" name="category_id" value="1" class="form-control mb-3" required>
+            
+            <label>Supplier ID:</label>
+            <input type="number" name="supplier_id" value="1" class="form-control mb-3" required>
+            
+            <label>Product Code:</label>
+            <input type="text" name="code" value="HACK999" class="form-control mb-3" required>
+            
+            <label>Product Name:</label>
+            <input type="text" name="name" value="🚨 HACKED PRODUCT - CSRF ATTACK!" class="form-control mb-3" required>
+            
+            <label>Price (Rp):</label>
+            <input type="number" name="price" value="999999" class="form-control mb-3" required>
+            
+            <label>Stock:</label>
+            <input type="number" name="stock" value="666" class="form-control mb-3" required>
+            
+            <input type="hidden" name="brand" value="HACKER">
+            <input type="hidden" name="description" value="This is a CSRF attack test">
+            <input type="hidden" name="motor_type" value="ALL">
+            <input type="hidden" name="image" value="">
+            
+            <div class="alert alert-danger mt-3">
+                <strong><i class="fas fa-times-circle"></i> MISSING:</strong> 
+                <code>&lt;input type="hidden" name="csrf_token" value=""&gt;</code>
+            </div>
+            
+            <button type="submit">
+                <i class="fas fa-bomb"></i> LAUNCH CSRF ATTACK (Should FAIL with 403)
+            </button>
+        </form>
+        
+        <div class="alert alert-success">
+            <h4><i class="fas fa-shield-alt"></i> Expected Result (If Protected):</h4>
+            <ul class="mb-0">
+                <li><strong>✅ Request DITOLAK</strong> dengan HTTP 403 Forbidden</li>
+                <li><strong>✅ Error message:</strong> "CSRF token validation failed"</li>
+                <li><strong>✅ Data TIDAK TERSIMPAN</strong> di database</li>
+            </ul>
+        </div>
+        
+        <hr class="my-5">
+        
+        <div class="text-center mt-5">
+            <a href="index.php" class="btn btn-primary btn-lg" style="background:#0d6efd;width:auto;display:inline-block;">
+                <i class="fas fa-home"></i> Kembali ke Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- CATATAN PENTING -->
+    <div class="container mt-4" style="background:rgba(255,255,255,0.9);padding:20px;border-radius:10px;">
+        <h5><i class="fas fa-info-circle"></i> Cara Testing yang Benar:</h5>
+        <ol>
+            <li><strong>Akses via web server:</strong> <code>http://localhost/pl/prak%20pl/week8/csrf-test.html</code></li>
+            <li>Klik tombol "LAUNCH CSRF ATTACK"</li>
+            <li>Harusnya muncul error <strong style="color:#dc3545;">403 Forbidden</strong></li>
+            <li>Pesan error: <strong>"CSRF token validation failed. Request blocked for security reasons."</strong></li>
+            <li>Cek database → data <strong>TIDAK</strong> boleh tersimpan</li>
+        </ol>
+        
+        <div class="alert alert-info mt-3">
+            <strong>💡 Troubleshooting:</strong><br>
+            Jika Apache error:
+            <ul class="mb-0">
+                <li>Pastikan path action form benar: <code>index.php?c=products&a=store</code></li>
+                <li>Pastikan semua field required ada (category_id, supplier_id, code, name, price, stock)</li>
+                <li>Check error log Apache di: <code>xampp/apache/logs/error.log</code></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
