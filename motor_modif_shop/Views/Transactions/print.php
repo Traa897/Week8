@@ -1,10 +1,21 @@
 <?php
+/**
+ * PRINT INVOICE
+ * File: motor_modif_shop/Views/Transactions/print.php
+ * FIXED: Use BASE_PATH for correct file paths
+ */
 
+// Get transaction ID
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-require_once 'config/database.php';
-require_once 'models/Transaction.php';
-require_once 'helpers/functions.php';
+// Use BASE_PATH if defined, otherwise define it
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', __DIR__ . '/../../');
+}
+
+require_once BASE_PATH . 'config/database.php';
+require_once BASE_PATH . 'models/Transaction.php';
+require_once BASE_PATH . 'helpers/functions.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -259,17 +270,16 @@ if (!$transaction) {
 </head>
 <body>
     <button onclick="window.print()" class="print-button no-print">
-        CETAK INVOICE
+    CETAK INVOICE
     </button>
 
     <div class="invoice-container">
         <div class="header">
-            <div class="logo">🏍️</div>
-            <h1>MOTOR MODIF SHOP</h1>
+            <div class="logo"></div>
+            <h1>PATRA JAYA VARIASI</h1>
             <p>Toko Sparepart Motor Modifikasi Terpercaya</p>
-            <p>Jl. Raya Motor No. 123, Jakarta Pusat 10110</p>
-            <p>Telp: (021) 1234-5678 | Email: info@motormodifshop.com</p>
-            <p>Website: www.motormodifshop.com</p>
+            <p>Jl. Soekarno Hatta Km. 21 RT 41, Balikpapan Utara</p>
+            <p>Telp: 081351319657 | Email: patran05534@gmail.com</p>
         </div>
 
         <div class="invoice-title">
@@ -410,14 +420,19 @@ if (!$transaction) {
     </div>
 
     <script>
+        // Auto print on load (optional)
+        // window.onload = function() { window.print(); }
+        
         window.onafterprint = function() {
-           
+            // Optional: redirect after print
+            // window.location.href = 'index.php?c=transactions&a=index';
         }
     </script>
 </body>
 </html>
 
 <?php
+// Helper function: Convert number to words (Indonesian)
 function terbilang($angka) {
     $angka = abs($angka);
     $bilangan = array('', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas');
@@ -444,4 +459,7 @@ function terbilang($angka) {
         return terbilang($angka / 1000000000000) . ' trilyun ' . terbilang($angka % 1000000000000);
     }
 }
+
+// Close database connection
+$database->close();
 ?>
