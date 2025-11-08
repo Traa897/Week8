@@ -462,8 +462,4 @@ function terbilang($angka) {
 
 // Close database connection
 $database->close();
-<<<<<<< HEAD
-?>
-=======
-?>
->>>>>>> 68c76b1 (update)
+

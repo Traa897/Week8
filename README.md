@@ -1,5 +1,6 @@
+## BUAT LOGIN 3 ROLE 
 
- 
-# PL-PRAK
-# Week8
-# Week8
+
+Username: developer | Role: Developer | Full Access
+Username: admin     | Role: Admin     | Management Access  
+Username: user      | Role: User      | Customer Access
