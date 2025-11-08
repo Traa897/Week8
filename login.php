@@ -1,10 +1,28 @@
 <?php
 /**
- * LOGIN PAGE
+ * LOGIN PAGE - FIXED
  * File: login.php
  */
 
+// CLEAR OLD SESSION FIRST (Fix untuk redirect loop)
+if (isset($_GET['fresh'])) {
+    session_start();
+    session_unset();
+    session_destroy();
+    session_write_close();
+    setcookie(session_name(), '', time()-3600, '/');
+    header('Location: login.php');
+    exit;
+}
+
 session_start();
+
+// Regenerate session ID untuk keamanan
+if (!isset($_SESSION['session_started'])) {
+    session_regenerate_id(true);
+    $_SESSION['session_started'] = true;
+}
+
 define('BASE_PATH', __DIR__ . '/motor_modif_shop/');
 
 require_once BASE_PATH . 'config/database.php';
@@ -16,26 +34,40 @@ $database = new Database();
 $db = $database->getConnection();
 Auth::init($db);
 
-// Redirect if already logged in
-if (Auth::check()) {
-    redirect('index.php');
+// Redirect if already logged in (dengan extra check)
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_SESSION['user_id'])) {
+    header('Location: index.php');
+    exit;
 }
 
 // Handle login
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    Csrf::verifyOrFail($_POST['csrf_token'] ?? '');
-    
-    $username = clean($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-    
-    $result = Auth::login($username, $password);
-    
-    if ($result['success']) {
-        setFlash('success', 'Selamat datang, ' . $_SESSION['full_name'] . '!');
-        redirect('index.php');
+    // Verify CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+        $error = 'Invalid CSRF token. Please refresh and try again.';
     } else {
-        $error = $result['message'];
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        
+        if (empty($username) || empty($password)) {
+            $error = 'Username dan password harus diisi';
+        } else {
+            $result = Auth::login($username, $password);
+            
+            if ($result['success']) {
+                // Regenerate session ID setelah login untuk keamanan
+                session_regenerate_id(true);
+                
+                setFlash('success', 'Selamat datang, ' . ($_SESSION['full_name'] ?? 'User') . '!');
+                
+                // Redirect dengan absolute path
+                header('Location: index.php');
+                exit;
+            } else {
+                $error = $result['message'];
+            }
+        }
     }
 }
 
@@ -52,7 +84,7 @@ $database->close();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
-            background: linear-gradient(135deg, #ffffffff 0%, #ffffffff 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -70,7 +102,7 @@ $database->close();
             overflow: hidden;
         }
         .login-header {
-            background: linear-gradient(135deg, #004adfff 0%, #4265c5ff 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 40px 30px;
             text-align: center;
@@ -97,7 +129,7 @@ $database->close();
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
         }
         .btn-login {
-            background: linear-gradient(135deg, #4265c5ff 0%, #5a76c2ff 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 12px;
             border-radius: 10px;
@@ -128,7 +160,7 @@ $database->close();
             margin-top: 20px;
         }
         .demo-accounts h6 {
-            color: #3f5ad1ff;
+            color: #667eea;
             font-weight: bold;
             margin-bottom: 15px;
         }
@@ -153,6 +185,24 @@ $database->close();
             color: #6c757d;
             margin-top: 3px;
         }
+        .clear-session-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        .clear-session-link:hover {
+            background: #bb2d3b;
+            color: white;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -169,7 +219,7 @@ $database->close();
                 
                 <?php if ($error): ?>
                 <div class="alert alert-danger alert-dismissible fade show">
-                    <i class="fas fa-exclamation-circle"></i> <?= $error ?>
+                    <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($error) ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
                 <?php endif; ?>
@@ -240,6 +290,11 @@ $database->close();
             </p>
         </div>
     </div>
+    
+    <!-- Emergency Clear Session Button -->
+    <a href="login.php?fresh=1" class="clear-session-link" title="Klik ini jika stuck di redirect loop">
+        <i class="fas fa-sync-alt"></i> Reset Session
+    </a>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>

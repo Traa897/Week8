@@ -1,12 +1,12 @@
 <?php
 /**
- * MAIN INDEX WITH AUTHENTICATION
+ * MAIN INDEX WITH 3-ROLE AUTHENTICATION
  * File: index.php
  * 
  * Role-based access control:
- * - Developer: Full access
- * - Admin: Products, Categories, Suppliers, Customers, Transactions, Recycle Bin
- * - User: View Products, Create Transactions
+ * - Developer: Full access to everything
+ * - Admin: Manage products, categories, suppliers, customers, transactions, recycle bin
+ * - User: Only shop view and their own transactions
  */
 
 session_start();
@@ -24,6 +24,12 @@ $database = new Database();
 $db = $database->getConnection();
 Auth::init($db);
 
+// Extra check untuk mencegah redirect loop
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['logged_in'])) {
+    header('Location: login.php');
+    exit;
+}
+
 // Require login
 Auth::requireLogin();
 
@@ -31,34 +37,61 @@ $controller = isset($_GET['c']) ? clean($_GET['c']) : 'dashboard';
 $action = isset($_GET['a']) ? clean($_GET['a']) : 'index';
 
 // ========================================
-// ROLE-BASED ACCESS CONTROL
+// ROLE-BASED ACCESS CONTROL (3 ROLES)
 // ========================================
 
 // Define access rules for each controller
 $accessRules = [
+    // Dashboard - berbeda per role
     'dashboard' => ['developer', 'admin', 'user'],
+    
+    // Shop - hanya untuk user
+    'shop' => ['user'],
+    
+    // Products
     'products' => [
-        'index' => ['developer', 'admin', 'user'],
+        'index' => ['developer', 'admin'],
         'create' => ['developer', 'admin'],
         'store' => ['developer', 'admin'],
         'edit' => ['developer', 'admin'],
         'update' => ['developer', 'admin'],
         'delete' => ['developer', 'admin']
     ],
+    
+    // Categories - admin & developer
     'categories' => ['developer', 'admin'],
+    
+    // Suppliers - admin & developer
     'suppliers' => ['developer', 'admin'],
+    
+    // Customers - admin & developer
     'customers' => ['developer', 'admin'],
+    
+    // Transactions
     'transactions' => [
-        'index' => ['developer', 'admin', 'user'],
-        'create' => ['developer', 'admin', 'user'],
-        'store' => ['developer', 'admin', 'user'],
-        'detail' => ['developer', 'admin', 'user'],
-        'print' => ['developer', 'admin', 'user'],
-        'delete' => ['developer', 'admin']
+        'index' => ['developer', 'admin'],
+        'detail' => ['developer', 'admin'],
+        'delete' => ['developer', 'admin'],
+        'print' => ['developer', 'admin']
     ],
+    
+    // User Transactions - untuk user melihat transaksi mereka sendiri
+    'mytransactions' => ['user'],
+    
+    // Checkout - user saja
+    'checkout' => ['user'],
+    
+    // Profile - user untuk edit profil
+    'profile' => ['user'],
+    
+    // Recycle Bin - admin & developer
     'recyclebin' => ['developer', 'admin'],
-    'users' => ['developer'], // Only developer can manage users
-    'settings' => ['developer'] // Only developer can access settings
+    
+    // Users Management - developer only
+    'users' => ['developer'],
+    
+    // Settings - developer only
+    'settings' => ['developer']
 ];
 
 // Check access
@@ -72,7 +105,7 @@ if ($controller == 'dashboard' || $controller == '') {
         if (is_array($accessRules[$controller]) && isset($accessRules[$controller][$action])) {
             $hasAccess = Auth::hasRole($accessRules[$controller][$action]);
         } elseif (is_array($accessRules[$controller]) && !isset($accessRules[$controller][$action])) {
-            // Action not explicitly defined, check if it's in the general list
+            // Action not explicitly defined, deny access
             $hasAccess = false;
         } else {
             $hasAccess = Auth::hasRole($accessRules[$controller]);
@@ -88,10 +121,18 @@ if (!$hasAccess) {
 }
 
 // ========================================
-// DASHBOARD
+// DASHBOARD - BERBEDA PER ROLE
 // ========================================
 
 if ($controller == 'dashboard' || $controller == '') {
+    
+    // USER ROLE: Redirect ke shop
+    if (Auth::isUser()) {
+        redirect('index.php?c=shop&a=index');
+        exit;
+    }
+    
+    // ADMIN & DEVELOPER: Show admin dashboard
     require_once BASE_PATH . 'models/Product.php';
     require_once BASE_PATH . 'models/Customer.php';
     require_once BASE_PATH . 'models/Transaction.php';

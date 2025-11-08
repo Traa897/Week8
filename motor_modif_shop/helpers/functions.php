@@ -69,8 +69,11 @@ function clearErrors() {
 // ========================================
 
 function redirect($url) {
-    header("Location: $url");
-    exit();
+    // Pastikan tidak ada output sebelum redirect
+    if (!headers_sent()) {
+        header("Location: $url");
+        exit;
+    }
 }
 
 function clean($data) {

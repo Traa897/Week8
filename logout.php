@@ -1,15 +1,19 @@
 <?php
 /**
- * LOGOUT HANDLER
+ * LOGOUT HANDLER - FIXED
  * File: logout.php
  */
 
 session_start();
-define('BASE_PATH', __DIR__ . '/motor_modif_shop/');
+session_unset();
+session_destroy();
+session_write_close();
 
-require_once BASE_PATH . 'helpers/Auth.php';
-require_once BASE_PATH . 'helpers/functions.php';
+// Hapus cookie session
+if (isset($_COOKIE[session_name()])) {
+    setcookie(session_name(), '', time()-3600, '/');
+}
 
-Auth::logout();
-setFlash('success', '✅ Anda berhasil logout. Sampai jumpa!');
-redirect('login.php');
+// Redirect ke login dengan fresh session
+header('Location: login.php?fresh=1');
+exit;

@@ -302,17 +302,29 @@ INSERT INTO `transaksi` (`id`, `customer_id`, `transaction_code`, `transaction_d
 -- Struktur dari tabel `users`
 --
 
-CREATE TABLE `users` (
-  `id` int(11) NOT NULL,
+-- Update tabel users
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `email` varchar(100) NOT NULL,
-  `role` enum('developer','admin','user') NOT NULL,
+  `full_name` varchar(100) NOT NULL,
+  `role` enum('developer','admin','user') NOT NULL DEFAULT 'user',
+  `is_active` tinyint(1) DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
---
+-- Insert default users
+INSERT INTO `users` (`username`, `password`, `email`, `full_name`, `role`) VALUES
+('developer', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'developer@patra.com', 'Developer Patra', 'developer'),
+('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@patra.com', 'Admin Patra', 'admin'),
+('user', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'user@patra.com', 'User Patra', 'user');
+
+-- Password untuk semua: password
 -- Indexes for dumped tables
 --
 

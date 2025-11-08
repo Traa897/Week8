@@ -141,12 +141,17 @@ class Auth {
     /**
      * Require authentication
      */
-    public static function requireLogin() {
-        if (!self::check()) {
-            redirect('login.php');
-            exit;
-        }
+   public static function requireLogin() {
+    if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+        header('Location: login.php');
+        exit;
     }
+    
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: login.php');
+        exit;
+    }
+}
     
     /**
      * Require specific role

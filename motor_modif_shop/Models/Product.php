@@ -1,12 +1,13 @@
 <?php
 
 class Product {
-    private $conn;
+    public $db; // CHANGED: dari private jadi public
     private $table = 'products';
     
     public function __construct($db) {
-        $this->conn = $db;
+        $this->db = $db; // Now accessible from ShopController
     }
+    
     
     // Get all products (exclude deleted)
     public function all($search = '', $page = 1, $limit = 10) {
@@ -22,7 +23,7 @@ class Product {
                 ORDER BY p.created_at DESC
                 LIMIT ? OFFSET ?";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('sssii', $search, $search, $search, $limit, $offset);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -44,7 +45,7 @@ class Product {
                 ORDER BY p.deleted_at DESC
                 LIMIT ? OFFSET ?";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('sssii', $search, $search, $search, $limit, $offset);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -59,7 +60,7 @@ class Product {
                 WHERE deleted_at IS NULL
                 AND (name LIKE ? OR code LIKE ? OR motor_type LIKE ?)";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('sss', $search, $search, $search);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -75,7 +76,7 @@ class Product {
                 WHERE deleted_at IS NOT NULL
                 AND (name LIKE ? OR code LIKE ? OR motor_type LIKE ?)";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('sss', $search, $search, $search);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -91,7 +92,7 @@ class Product {
                 LEFT JOIN suppliers s ON p.supplier_id = s.id
                 WHERE p.id = ? AND p.deleted_at IS NULL";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -106,7 +107,7 @@ class Product {
                 LEFT JOIN suppliers s ON p.supplier_id = s.id
                 WHERE p.id = ? AND p.deleted_at IS NOT NULL";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -124,7 +125,7 @@ class Product {
                 (category_id, supplier_id, code, name, brand, description, price, stock, motor_type, image) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('iissssdiss', 
             $data['category_id'],
             $data['supplier_id'],
@@ -139,7 +140,7 @@ class Product {
         );
         
         if ($stmt->execute()) {
-            return ['success' => true, 'id' => $this->conn->insert_id];
+            return ['success' => true, 'id' => $this->db->insert_id];
         }
         
         return ['success' => false, 'message' => 'Gagal menyimpan data'];
@@ -157,7 +158,7 @@ class Product {
                 motor_type = ?, image = ?
                 WHERE id = ? AND deleted_at IS NULL";
         
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('iissssdissi', 
             $data['category_id'],
             $data['supplier_id'],
@@ -178,7 +179,7 @@ class Product {
     // SOFT DELETE - Move to recycle bin
     public function delete($id) {
         $checkProduct = "SELECT id FROM {$this->table} WHERE id = ? AND deleted_at IS NULL";
-        $stmt = $this->conn->prepare($checkProduct);
+        $stmt = $this->db->prepare($checkProduct);
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -188,7 +189,7 @@ class Product {
         }
         
         $sql = "UPDATE {$this->table} SET deleted_at = NOW() WHERE id = ?";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $id);
         
         if ($stmt->execute()) {
@@ -201,7 +202,7 @@ class Product {
     // RESTORE from recycle bin
     public function restore($id) {
         $sql = "UPDATE {$this->table} SET deleted_at = NULL WHERE id = ?";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $id);
         
         if ($stmt->execute()) {
@@ -214,7 +215,7 @@ class Product {
     // RESTORE ALL from recycle bin
     public function restoreAll() {
         $countSql = "SELECT COUNT(*) as total FROM {$this->table} WHERE deleted_at IS NOT NULL";
-        $result = $this->conn->query($countSql);
+        $result = $this->db->query($countSql);
         $row = $result->fetch_assoc();
         $total = $row['total'];
         
@@ -224,8 +225,8 @@ class Product {
         
         $sql = "UPDATE {$this->table} SET deleted_at = NULL WHERE deleted_at IS NOT NULL";
         
-        if ($this->conn->query($sql)) {
-            $restoredCount = $this->conn->affected_rows;
+        if ($this->db->query($sql)) {
+            $restoredCount = $this->db->affected_rows;
             return ['success' => true, 'message' => "Berhasil mengembalikan $restoredCount produk dari Recycle Bin"];
         }
         
@@ -241,7 +242,7 @@ class Product {
         }
         
         $check = "SELECT COUNT(*) as total FROM transaction_details WHERE product_id = ?";
-        $stmt = $this->conn->prepare($check);
+        $stmt = $this->db->prepare($check);
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -259,7 +260,7 @@ class Product {
         }
         
         $sql = "DELETE FROM {$this->table} WHERE id = ? AND deleted_at IS NOT NULL";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $id);
         
         if ($stmt->execute()) {
@@ -276,7 +277,7 @@ class Product {
                 WHERE p.deleted_at IS NOT NULL
                 AND p.id NOT IN (SELECT DISTINCT product_id FROM transaction_details)";
         
-        $result = $this->conn->query($sql);
+        $result = $this->db->query($sql);
         $products = $result->fetch_all(MYSQLI_ASSOC);
         
         if (empty($products)) {
@@ -298,8 +299,8 @@ class Product {
                 WHERE deleted_at IS NOT NULL
                 AND id NOT IN (SELECT DISTINCT product_id FROM transaction_details)";
         
-        if ($this->conn->query($sql)) {
-            $deletedCount = $this->conn->affected_rows;
+        if ($this->db->query($sql)) {
+            $deletedCount = $this->db->affected_rows;
             if ($deletedCount > 0) {
                 return ['success' => true, 'message' => "Berhasil menghapus $deletedCount produk dari Recycle Bin"];
             } else {
@@ -317,7 +318,7 @@ class Product {
                      WHERE p.deleted_at IS NOT NULL 
                      AND p.deleted_at <= DATE_SUB(NOW(), INTERVAL ? DAY)";
         
-        $stmt = $this->conn->prepare($checkSql);
+        $stmt = $this->db->prepare($checkSql);
         $stmt->bind_param('i', $days);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -350,7 +351,7 @@ class Product {
             }
             
             $deleteSql = "DELETE FROM {$this->table} WHERE id = ?";
-            $deleteStmt = $this->conn->prepare($deleteSql);
+            $deleteStmt = $this->db->prepare($deleteSql);
             $deleteStmt->bind_param('i', $product['id']);
             
             if ($deleteStmt->execute()) {
@@ -381,7 +382,7 @@ class Product {
         $types = str_repeat('i', count($ids));
         
         $sql = "UPDATE {$this->table} SET deleted_at = NULL WHERE id IN ($placeholders) AND deleted_at IS NOT NULL";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param($types, ...$ids); 
         
         if ($stmt->execute()) {
@@ -399,7 +400,7 @@ class Product {
         $types = str_repeat('i', count($ids));
 
         $checkSql = "SELECT DISTINCT product_id FROM transaction_details WHERE product_id IN ($placeholders)";
-        $stmtCheck = $this->conn->prepare($checkSql);
+        $stmtCheck = $this->db->prepare($checkSql);
         $stmtCheck->bind_param($types, ...$ids);
         $stmtCheck->execute();
         $result = $stmtCheck->get_result();
@@ -415,7 +416,7 @@ class Product {
         $deletableTypes = str_repeat('i', count($deletableIds));
         
         $sql = "DELETE FROM {$this->table} WHERE id IN ($deletablePlaceholders) AND deleted_at IS NOT NULL";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param($deletableTypes, ...$deletableIds);
         
         $stmt->execute();
@@ -440,7 +441,7 @@ class Product {
             if ($id) {
                 $sql .= " AND id != ?";
             }
-            $stmt = $this->conn->prepare($sql);
+            $stmt = $this->db->prepare($sql);
             if ($id) {
                 $stmt->bind_param('si', $data['code'], $id);
             } else {
@@ -478,7 +479,7 @@ class Product {
     
     public function updateStock($id, $quantity) {
         $sql = "UPDATE {$this->table} SET stock = stock - ? WHERE id = ? AND deleted_at IS NULL";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->bind_param('ii', $quantity, $id);
         return $stmt->execute();
     }
@@ -492,7 +493,7 @@ class Product {
                 AND p.stock > 0
                 ORDER BY p.name ASC";
         
-        $result = $this->conn->query($sql);
+        $result = $this->db->query($sql);
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 }
