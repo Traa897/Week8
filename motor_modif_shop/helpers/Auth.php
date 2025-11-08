@@ -1,18 +1,7 @@
 <?php
 /**
- * AUTHENTICATION HELPER
+ * AUTHENTICATION HELPER - FIXED FINAL
  * File: motor_modif_shop/helpers/Auth.php
- * 
- * Methods:
- * - login()
- * - logout()
- * - check()
- * - user()
- * - role()
- * - isDeveloper()
- * - isAdmin()
- * - isUser()
- * - hasRole()
  */
 
 class Auth {
@@ -23,7 +12,7 @@ class Auth {
     }
     
     /**
-     * Login user
+     * Login user - FIXED
      */
     public static function login($username, $password) {
         if (!self::$db) {
@@ -47,12 +36,16 @@ class Auth {
             return ['success' => false, 'message' => 'Password salah'];
         }
         
-        // Set session
+        // FIXED: Clear old session first
+        $_SESSION = array();
+        
+        // Set session dengan data lengkap
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
         $_SESSION['role'] = $user['role'];
         $_SESSION['full_name'] = $user['full_name'];
         $_SESSION['logged_in'] = true;
+        $_SESSION['login_time'] = time();
         
         // Update last login
         $updateSql = "UPDATE users SET updated_at = NOW() WHERE id = ?";
@@ -77,10 +70,13 @@ class Auth {
     }
     
     /**
-     * Check if user is logged in
+     * Check if user is logged in - FIXED dengan strict checking
      */
     public static function check() {
-        return isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
+        return isset($_SESSION['logged_in']) && 
+               $_SESSION['logged_in'] === true &&
+               isset($_SESSION['user_id']) &&
+               isset($_SESSION['role']);
     }
     
     /**
@@ -141,17 +137,12 @@ class Auth {
     /**
      * Require authentication
      */
-   public static function requireLogin() {
-    if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-        header('Location: login.php');
-        exit;
+    public static function requireLogin() {
+        if (!self::check()) {
+            header('Location: login.php');
+            exit;
+        }
     }
-    
-    if (!isset($_SESSION['user_id'])) {
-        header('Location: login.php');
-        exit;
-    }
-}
     
     /**
      * Require specific role

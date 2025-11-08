@@ -1,12 +1,7 @@
 <?php
 /**
- * MAIN INDEX WITH 3-ROLE AUTHENTICATION
+ * MAIN INDEX - FIXED ACCESS CONTROL
  * File: index.php
- * 
- * Role-based access control:
- * - Developer: Full access to everything
- * - Admin: Manage products, categories, suppliers, customers, transactions, recycle bin
- * - User: Only shop view and their own transactions
  */
 
 session_start();
@@ -24,157 +19,152 @@ $database = new Database();
 $db = $database->getConnection();
 Auth::init($db);
 
-// Extra check untuk mencegah redirect loop
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['logged_in'])) {
+// Check login - FIXED: lebih strict
+if (!Auth::check()) {
     header('Location: login.php');
     exit;
 }
 
-// Require login
-Auth::requireLogin();
-
+// Get controller & action
 $controller = isset($_GET['c']) ? clean($_GET['c']) : 'dashboard';
 $action = isset($_GET['a']) ? clean($_GET['a']) : 'index';
 
 // ========================================
-// ROLE-BASED ACCESS CONTROL (3 ROLES)
+// ROLE-BASED ACCESS CONTROL - FIXED
 // ========================================
 
-// Define access rules for each controller
 $accessRules = [
-    // Dashboard - berbeda per role
+    // Dashboard - semua role bisa akses
     'dashboard' => ['developer', 'admin', 'user'],
     
-    // Shop - hanya untuk user
+    // Shop - HANYA USER
     'shop' => ['user'],
     
-    // Products
-    'products' => [
-        'index' => ['developer', 'admin'],
-        'create' => ['developer', 'admin'],
-        'store' => ['developer', 'admin'],
-        'edit' => ['developer', 'admin'],
-        'update' => ['developer', 'admin'],
-        'delete' => ['developer', 'admin']
-    ],
+    // Products - Developer & Admin
+    'products' => ['developer', 'admin'],
     
-    // Categories - admin & developer
+    // Categories - Developer & Admin (FIXED)
     'categories' => ['developer', 'admin'],
     
-    // Suppliers - admin & developer
+    // Suppliers - Developer & Admin (FIXED)
     'suppliers' => ['developer', 'admin'],
     
-    // Customers - admin & developer
+    // Customers - Developer & Admin (FIXED)
     'customers' => ['developer', 'admin'],
     
-    // Transactions
-    'transactions' => [
-        'index' => ['developer', 'admin'],
-        'detail' => ['developer', 'admin'],
-        'delete' => ['developer', 'admin'],
-        'print' => ['developer', 'admin']
-    ],
+    // Transactions - Developer & Admin
+    'transactions' => ['developer', 'admin'],
     
-    // User Transactions - untuk user melihat transaksi mereka sendiri
+    // User Transactions - HANYA USER
     'mytransactions' => ['user'],
     
-    // Checkout - user saja
+    // Checkout - HANYA USER
     'checkout' => ['user'],
     
-    // Profile - user untuk edit profil
+    // Profile - HANYA USER
     'profile' => ['user'],
     
-    // Recycle Bin - admin & developer
+    // Recycle Bin - Developer & Admin (FIXED)
     'recyclebin' => ['developer', 'admin'],
     
-    // Users Management - developer only
+    // Users Management - HANYA DEVELOPER
     'users' => ['developer'],
     
-    // Settings - developer only
+    // Settings - HANYA DEVELOPER
     'settings' => ['developer']
 ];
 
-// Check access
-$hasAccess = false;
+// ========================================
+// CHECK ACCESS - FIXED LOGIC
+// ========================================
 
+$hasAccess = false;
+$currentRole = Auth::role();
+
+// Dashboard special handling
 if ($controller == 'dashboard' || $controller == '') {
-    $hasAccess = Auth::hasRole($accessRules['dashboard']);
+    $hasAccess = true; // Semua role bisa akses dashboard
 } else {
+    // Check controller access
     if (isset($accessRules[$controller])) {
-        // Check if it's action-specific rules
-        if (is_array($accessRules[$controller]) && isset($accessRules[$controller][$action])) {
-            $hasAccess = Auth::hasRole($accessRules[$controller][$action]);
-        } elseif (is_array($accessRules[$controller]) && !isset($accessRules[$controller][$action])) {
-            // Action not explicitly defined, deny access
-            $hasAccess = false;
-        } else {
-            $hasAccess = Auth::hasRole($accessRules[$controller]);
+        $allowedRoles = $accessRules[$controller];
+        
+        // Check if current role is in allowed roles
+        if (in_array($currentRole, $allowedRoles)) {
+            $hasAccess = true;
         }
     }
 }
 
-// Deny access if user doesn't have permission
+// DENY ACCESS if user doesn't have permission
 if (!$hasAccess) {
-    setFlash('danger', '❌ Anda tidak memiliki akses ke halaman ini. Role Anda: <strong>' . Auth::role() . '</strong>');
+    setFlash('danger', '❌ Anda tidak memiliki akses ke halaman ini. Role Anda: <strong>' . $currentRole . '</strong>');
     redirect('index.php');
     exit;
 }
 
 // ========================================
-// DASHBOARD - BERBEDA PER ROLE
+// DASHBOARD ROUTING - FIXED
 // ========================================
 
 if ($controller == 'dashboard' || $controller == '') {
     
-    // USER ROLE: Redirect ke shop
+    // USER: Redirect ke shop (FIXED - pastikan tidak loop)
     if (Auth::isUser()) {
-        redirect('index.php?c=shop&a=index');
-        exit;
+        // Cek apakah sudah di shop
+        if (!isset($_GET['c']) || $_GET['c'] !== 'shop') {
+            header('Location: index.php?c=shop&a=index');
+            exit;
+        }
     }
     
     // ADMIN & DEVELOPER: Show admin dashboard
-    require_once BASE_PATH . 'models/Product.php';
-    require_once BASE_PATH . 'models/Customer.php';
-    require_once BASE_PATH . 'models/Transaction.php';
-    
-    $productModel = new Product($db);
-    $customerModel = new Customer($db);
-    $transactionModel = new Transaction($db);
-    
-    $totalProducts = $productModel->count('');
-    $totalCustomers = $customerModel->count('');
-    $totalTransactions = $transactionModel->count('');
-    
-    $sql = "SELECT SUM(total_amount) as total FROM transaksi WHERE status = 'completed'";
-    $result = $db->query($sql);
-    $row = $result->fetch_assoc();
-    $totalRevenue = $row['total'] ?? 0;
-    
-    include BASE_PATH . 'views/layouts/header.php';
-    include BASE_PATH . 'views/dashboard.php';
-    include BASE_PATH . 'views/layouts/footer.php';
-    
-} else {
-    // ========================================
-    // CONTROLLERS
-    // ========================================
-    
-    $controllerFile = BASE_PATH . 'controllers/' . ucfirst($controller) . 'Controller.php';
-    
-    if (file_exists($controllerFile)) {
-        require_once $controllerFile;
+    if (Auth::isAdmin() || Auth::isDeveloper()) {
+        require_once BASE_PATH . 'models/Product.php';
+        require_once BASE_PATH . 'models/Customer.php';
+        require_once BASE_PATH . 'models/Transaction.php';
         
-        $controllerClass = ucfirst($controller) . 'Controller';
-        $controllerObject = new $controllerClass($db);
+        $productModel = new Product($db);
+        $customerModel = new Customer($db);
+        $transactionModel = new Transaction($db);
         
-        if (method_exists($controllerObject, $action)) {
-            $controllerObject->$action();
-        } else {
-            die("Action '$action' tidak ditemukan di controller '$controller'");
-        }
-    } else {
-        die("Controller '$controller' tidak ditemukan");
+        $totalProducts = $productModel->count('');
+        $totalCustomers = $customerModel->count('');
+        $totalTransactions = $transactionModel->count('');
+        
+        $sql = "SELECT SUM(total_amount) as total FROM transaksi WHERE status = 'completed'";
+        $result = $db->query($sql);
+        $row = $result->fetch_assoc();
+        $totalRevenue = $row['total'] ?? 0;
+        
+        include BASE_PATH . 'views/layouts/header.php';
+        include BASE_PATH . 'views/dashboard.php';
+        include BASE_PATH . 'views/layouts/footer.php';
+        
+        $database->close();
+        exit;
     }
+}
+
+// ========================================
+// CONTROLLERS - FIXED
+// ========================================
+
+$controllerFile = BASE_PATH . 'controllers/' . ucfirst($controller) . 'Controller.php';
+
+if (file_exists($controllerFile)) {
+    require_once $controllerFile;
+    
+    $controllerClass = ucfirst($controller) . 'Controller';
+    $controllerObject = new $controllerClass($db);
+    
+    if (method_exists($controllerObject, $action)) {
+        $controllerObject->$action();
+    } else {
+        die("Action '$action' tidak ditemukan di controller '$controller'");
+    }
+} else {
+    die("Controller '$controller' tidak ditemukan");
 }
 
 $database->close();

@@ -39,7 +39,7 @@ $isUserRole = Auth::isUser();
         
         /* Navbar untuk USER berbeda dengan Admin/Dev */
         .navbar-user {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #3493e6ff 0%, #3493e6ff 100%);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         

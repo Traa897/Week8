@@ -84,7 +84,7 @@ $database->close();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #ffffffff 0%rgba(255, 255, 255, 1)29 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -95,14 +95,14 @@ $database->close();
             max-width: 450px;
             width: 100%;
         }
-        .login-card {
+            .login-card {
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             overflow: hidden;
         }
         .login-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4877d4ff 0%, #4877d4ff 100%);
             color: white;
             padding: 40px 30px;
             text-align: center;
@@ -125,11 +125,11 @@ $database->close();
             transition: all 0.3s;
         }
         .form-control:focus {
-            border-color: #667eea;
+            border-color: #4877d4ff;
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
         }
         .btn-login {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4877d4ff 0%, #4877d4ff 100%);
             color: white;
             padding: 12px;
             border-radius: 10px;
@@ -160,7 +160,7 @@ $database->close();
             margin-top: 20px;
         }
         .demo-accounts h6 {
-            color: #667eea;
+            color: #344aaaff;
             font-weight: bold;
             margin-bottom: 15px;
         }
