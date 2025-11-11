@@ -213,6 +213,14 @@ $database->close();
             margin-bottom: -20px;
             width: 100%;
         }
+        .login-footer {
+            background-color: #000;       /* Latar belakang hitam */
+            color: #fff;                  /* Teks putih */
+            text-align: center;           /* Teks rata tengah */
+            padding: 12px;
+            margin-bottom: -20px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
