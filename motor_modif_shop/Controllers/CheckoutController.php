@@ -1,12 +1,9 @@
 <?php
 /**
- * CHECKOUT CONTROLLER - For User Role
+ * CHECKOUT CONTROLLER - FIXED
  * File: motor_modif_shop/controllers/CheckoutController.php
  * 
- * Features:
- * - Shopping cart management
- * - Checkout process
- * - Order placement
+ * FIX: Konsistensi dengan ProfileController
  */
 
 require_once BASE_PATH . 'controllers/BaseController.php';
@@ -141,7 +138,7 @@ class CheckoutController extends BaseController {
     }
     
     /**
-     * Checkout page
+     * Checkout page - FIXED
      */
     public function index() {
         $cart = $_SESSION['cart'] ?? [];
@@ -152,9 +149,8 @@ class CheckoutController extends BaseController {
             return;
         }
         
-        // Get or create customer record for this user
-        $userId = Auth::user()['id'];
-        $customer = $this->getOrCreateCustomer($userId);
+        // FIXED: Get or create customer record
+        $customer = $this->getOrCreateCustomer();
         
         // Calculate totals
         $subtotal = 0;
@@ -170,7 +166,7 @@ class CheckoutController extends BaseController {
     }
     
     /**
-     * Process checkout
+     * Process checkout - FIXED
      */
     public function process() {
         Csrf::verifyOrFail($_POST['csrf_token'] ?? '');
@@ -183,9 +179,15 @@ class CheckoutController extends BaseController {
             return;
         }
         
-        // Get customer
-        $userId = Auth::user()['id'];
-        $customer = $this->getOrCreateCustomer($userId);
+        // FIXED: Get customer (must exist now)
+        $customer = $this->getOrCreateCustomer();
+        
+        // VALIDATION: Check if customer has complete profile
+        if (empty($customer['phone']) || empty($customer['address']) || empty($customer['city'])) {
+            $this->setFlash('warning', '⚠️ Lengkapi profil Anda terlebih dahulu sebelum checkout!');
+            $this->redirect('index.php?c=profile&a=index');
+            return;
+        }
         
         // Prepare transaction data
         $totalAmount = 0;
@@ -198,7 +200,7 @@ class CheckoutController extends BaseController {
             'transaction_date' => date('Y-m-d'),
             'total_amount' => $totalAmount,
             'payment_method' => clean($_POST['payment_method'] ?? 'transfer'),
-            'status' => 'pending', // User orders start as pending
+            'status' => 'pending',
             'notes' => clean($_POST['notes'] ?? '')
         ];
         
@@ -219,22 +221,24 @@ class CheckoutController extends BaseController {
             // Clear cart
             unset($_SESSION['cart']);
             
-            $this->setFlash('success', 'Pesanan berhasil dibuat! Kode: ' . $result['code']);
+            $this->setFlash('success', '✅ Pesanan berhasil dibuat! Kode: ' . $result['code']);
             $this->redirect('index.php?c=mytransactions&a=detail&id=' . $result['id']);
         } else {
-            $this->setFlash('danger', 'Gagal membuat pesanan: ' . $result['message']);
+            $this->setFlash('danger', '❌ Gagal membuat pesanan: ' . $result['message']);
             $this->redirect('index.php?c=checkout&a=index');
         }
     }
     
     /**
-     * Get or create customer record for user
+     * FIXED: Get or create customer record
+     * Konsisten dengan ProfileController
      */
-    private function getOrCreateCustomer($userId) {
-        // Check if customer exists for this user
+    private function getOrCreateCustomer() {
+        $userEmail = Auth::user()['username'] . '@customer.com';
+        
+        // Check if customer exists
         $sql = "SELECT * FROM customers WHERE email = ?";
         $stmt = $this->db->prepare($sql);
-        $userEmail = Auth::user()['username'] . '@customer.com'; // Simple email generation
         $stmt->bind_param('s', $userEmail);
         $stmt->execute();
         $result = $stmt->get_result();

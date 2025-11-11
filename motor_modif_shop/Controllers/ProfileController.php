@@ -1,12 +1,9 @@
 <?php
 /**
- * PROFILE CONTROLLER - For User Role
+ * PROFILE CONTROLLER - FIXED
  * File: motor_modif_shop/controllers/ProfileController.php
  * 
- * Features:
- * - View profile
- * - Edit profile (name, address, phone)
- * - Change password
+ * FIX: Auto-create customer record jika belum ada
  */
 
 require_once BASE_PATH . 'controllers/BaseController.php';
@@ -23,13 +20,8 @@ class ProfileController extends BaseController {
      * View profile
      */
     public function index() {
-        // Get customer data
-        $userEmail = Auth::user()['username'] . '@customer.com';
-        $sql = "SELECT * FROM customers WHERE email = ?";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $userEmail);
-        $stmt->execute();
-        $customer = $stmt->get_result()->fetch_assoc();
+        // FIXED: Get or create customer data
+        $customer = $this->getOrCreateCustomer();
         
         // Get user account data
         $user = Auth::user();
@@ -41,7 +33,7 @@ class ProfileController extends BaseController {
     }
     
     /**
-     * Update profile
+     * Update profile - FIXED
      */
     public function update() {
         Csrf::verifyOrFail($_POST['csrf_token'] ?? '');
@@ -66,27 +58,29 @@ class ProfileController extends BaseController {
             return;
         }
         
+        // FIXED: Get or create customer first
+        $customer = $this->getOrCreateCustomer();
+        
         // Update customer data
-        $userEmail = Auth::user()['username'] . '@customer.com';
-        $sql = "UPDATE customers SET name = ?, phone = ?, address = ?, city = ? WHERE email = ?";
+        $sql = "UPDATE customers SET name = ?, phone = ?, address = ?, city = ? WHERE id = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('sssss', 
+        $stmt->bind_param('ssssi', 
             $data['name'],
             $data['phone'],
             $data['address'],
             $data['city'],
-            $userEmail
+            $customer['id']  // FIXED: Use customer ID instead of email
         );
         
         if ($stmt->execute()) {
-            // Update full_name in session if name changed
+            // Update session
             $_SESSION['full_name'] = $data['name'];
             
             $this->setFlash('success', '✅ Profil berhasil diupdate');
             clearOld();
             clearErrors();
         } else {
-            $this->setFlash('danger', '❌ Gagal update profil');
+            $this->setFlash('danger', '❌ Gagal update profil: ' . $this->db->error);
             setOld($data);
         }
         
@@ -146,5 +140,56 @@ class ProfileController extends BaseController {
         }
         
         $this->redirect('index.php?c=profile&a=index');
+    }
+    
+    /**
+     * FIXED: Get or create customer record
+     * Dipanggil otomatis setiap kali akses profile
+     */
+    private function getOrCreateCustomer() {
+        $userId = Auth::user()['id'];
+        $userEmail = Auth::user()['username'] . '@customer.com';
+        
+        // Check if customer exists
+        $sql = "SELECT * FROM customers WHERE email = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userEmail);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            // Customer exists, return it
+            return $result->fetch_assoc();
+        }
+        
+        // Customer TIDAK ADA - CREATE NOW!
+        $insertSql = "INSERT INTO customers (name, phone, email, address, city, created_at) 
+                      VALUES (?, '', ?, '', '', NOW())";
+        $insertStmt = $this->db->prepare($insertSql);
+        
+        $fullName = Auth::user()['full_name'];
+        $insertStmt->bind_param('ss', $fullName, $userEmail);
+        
+        if ($insertStmt->execute()) {
+            // Get the newly created customer
+            $newCustomerId = $this->db->insert_id;
+            
+            $getSql = "SELECT * FROM customers WHERE id = ?";
+            $getStmt = $this->db->prepare($getSql);
+            $getStmt->bind_param('i', $newCustomerId);
+            $getStmt->execute();
+            
+            return $getStmt->get_result()->fetch_assoc();
+        }
+        
+        // Fallback jika create gagal
+        return [
+            'id' => 0,
+            'name' => Auth::user()['full_name'],
+            'phone' => '',
+            'email' => $userEmail,
+            'address' => '',
+            'city' => ''
+        ];
     }
 }
