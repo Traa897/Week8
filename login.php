@@ -78,7 +78,7 @@ $database->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Patra Jaya Variasi</title>
+    <title>Login</title>
     <?= Csrf::metaTag() ?>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -202,6 +202,16 @@ $database->close();
             background: #bb2d3b;
             color: white;
             transform: scale(1.05);
+        
+        }
+
+        .login-footer {
+            background-color: #000;       /* Latar belakang hitam */
+            color: #fff;                  /* Teks putih */
+            text-align: center;           /* Teks rata tengah */
+            padding: 12px;
+            margin-bottom: -20px;
+            width: 100%;
         }
     </style>
 </head>
@@ -215,7 +225,7 @@ $database->close();
             </div>
             
             <div class="login-body">
-                <h4 class="text-center mb-4">Login ke Sistem</h4>
+                <h4 class="text-center mb-4">Login</h4>
                 
                 <?php if ($error): ?>
                 <div class="alert alert-danger alert-dismissible fade show">
@@ -284,11 +294,11 @@ $database->close();
             </div>
         </div>
         
-        <div class="text-center mt-4">
-            <p class="text-white small mb-0">
-                &copy; 2024 Patra Jaya Variasi. Powered by Patra Ananda 1061
-            </p>
-        </div>
+        <div class="login-footer text-center mt-4">
+        <p class="text-white small mb-0">
+            &copy; 2024 Patra Jaya Variasi. Powered by Patra Ananda 1061
+        </p>
+    </div>
     </div>
     
     <!-- Emergency Clear Session Button -->
