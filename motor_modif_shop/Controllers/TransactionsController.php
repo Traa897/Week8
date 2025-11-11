@@ -1,4 +1,13 @@
 <?php
+/**
+ * TRANSACTIONS CONTROLLER - WITH CONFIRMATION SYSTEM
+ * File: motor_modif_shop/controllers/TransactionsController.php
+ * 
+ * ADDED:
+ * - confirmPayment() - Konfirmasi pembayaran
+ * - rejectPayment() - Reject pembayaran
+ * - pending() - List transaksi pending
+ */
 
 require_once BASE_PATH . 'controllers/BaseController.php';
 require_once BASE_PATH . 'models/Transaction.php';
@@ -18,14 +27,45 @@ class TransactionsController extends BaseController {
     
     public function index() {
         $search = isset($_GET['search']) ? clean($_GET['search']) : '';
+        $status = isset($_GET['status']) ? clean($_GET['status']) : '';
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $limit = 10;
         
-        $transactions = $this->transactionModel->all($search, $page, $limit);
-        $total = $this->transactionModel->count($search);
+        $transactions = $this->transactionModel->all($search, $page, $limit, $status);
+        $total = $this->transactionModel->count($search, $status);
         $totalPages = ceil($total / $limit);
         
+        // Get count by status
+        $pendingCount = $this->transactionModel->countByStatus('pending');
+        $completedCount = $this->transactionModel->countByStatus('completed');
+        $cancelledCount = $this->transactionModel->countByStatus('cancelled');
+        
         $this->view('transactions/index', [
+            'transactions' => $transactions,
+            'search' => $search,
+            'status' => $status,
+            'page' => $page,
+            'totalPages' => $totalPages,
+            'total' => $total,
+            'pendingCount' => $pendingCount,
+            'completedCount' => $completedCount,
+            'cancelledCount' => $cancelledCount
+        ]);
+    }
+    
+    /**
+     * NEW: List pending transactions
+     */
+    public function pending() {
+        $search = isset($_GET['search']) ? clean($_GET['search']) : '';
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = 10;
+        
+        $transactions = $this->transactionModel->all($search, $page, $limit, 'pending');
+        $total = $this->transactionModel->countByStatus('pending');
+        $totalPages = ceil($total / $limit);
+        
+        $this->view('transactions/pending', [
             'transactions' => $transactions,
             'search' => $search,
             'page' => $page,
@@ -34,13 +74,103 @@ class TransactionsController extends BaseController {
         ]);
     }
     
-    public function create() {
-        // ========================================
-        // FIX: Ambil SEMUA produk tanpa pagination
-        // ========================================
-        $customers = $this->customerModel->all();
+    /**
+     * NEW: Confirm payment (approve transaction)
+     */
+    public function confirmPayment() {
+        Csrf::verifyOrFail($_POST['csrf_token'] ?? '');
         
-        // Ambil semua produk aktif (tidak dihapus), urutkan berdasarkan nama
+        $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $notes = clean($_POST['admin_notes'] ?? '');
+        
+        $transaction = $this->transactionModel->find($id);
+        
+        if (!$transaction) {
+            $this->setFlash('danger', '❌ Transaksi tidak ditemukan');
+            $this->redirect('index.php?c=transactions&a=pending');
+            return;
+        }
+        
+        if ($transaction['status'] !== 'pending') {
+            $this->setFlash('warning', '⚠️ Transaksi ini sudah diproses sebelumnya');
+            $this->redirect('index.php?c=transactions&a=detail&id=' . $id);
+            return;
+        }
+        
+        // Update status to completed
+        $result = $this->transactionModel->updateStatus($id, 'completed', $notes);
+        
+        if ($result['success']) {
+            $this->setFlash('success', '✅ Pembayaran berhasil dikonfirmasi! Transaksi: ' . $transaction['transaction_code']);
+            $this->redirect('index.php?c=transactions&a=detail&id=' . $id);
+        } else {
+            $this->setFlash('danger', '❌ Gagal konfirmasi pembayaran: ' . $result['message']);
+            $this->redirect('index.php?c=transactions&a=pending');
+        }
+    }
+    
+    /**
+     * NEW: Reject payment (cancel transaction)
+     */
+    public function rejectPayment() {
+        Csrf::verifyOrFail($_POST['csrf_token'] ?? '');
+        
+        $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $reason = clean($_POST['reject_reason'] ?? '');
+        
+        $transaction = $this->transactionModel->find($id);
+        
+        if (!$transaction) {
+            $this->setFlash('danger', '❌ Transaksi tidak ditemukan');
+            $this->redirect('index.php?c=transactions&a=pending');
+            return;
+        }
+        
+        if ($transaction['status'] !== 'pending') {
+            $this->setFlash('warning', '⚠️ Transaksi ini sudah diproses sebelumnya');
+            $this->redirect('index.php?c=transactions&a=detail&id=' . $id);
+            return;
+        }
+        
+        // Begin transaction for rollback safety
+        $db = $this->productModel->db;
+        $db->begin_transaction();
+        
+        try {
+            // Get transaction details for stock restoration
+            $details = $this->transactionModel->getDetails($id);
+            
+            // Restore stock - FIXED: Direct SQL update instead of updateStock
+            foreach ($details as $detail) {
+                $sql = "UPDATE products SET stock = stock + ? WHERE id = ?";
+                $stmt = $db->prepare($sql);
+                $stmt->bind_param('ii', $detail['quantity'], $detail['product_id']);
+                if (!$stmt->execute()) {
+                    throw new Exception('Gagal restore stok produk');
+                }
+            }
+            
+            // Update status to cancelled
+            $result = $this->transactionModel->updateStatus($id, 'cancelled', $reason);
+            
+            if (!$result['success']) {
+                throw new Exception('Gagal update status transaksi');
+            }
+            
+            $db->commit();
+            
+            $this->setFlash('success', '✅ Transaksi berhasil dibatalkan. Stok produk dikembalikan.');
+            $this->redirect('index.php?c=transactions&a=detail&id=' . $id);
+            
+        } catch (Exception $e) {
+            $db->rollback();
+            $this->setFlash('danger', '❌ Gagal membatalkan transaksi: ' . $e->getMessage());
+            $this->redirect('index.php?c=transactions&a=pending');
+        }
+    }
+    
+    public function create() {
+        $customers = $this->customerModel->all();
         $products = $this->productModel->getAllActive();
         
         $this->view('transactions/create', [
@@ -73,7 +203,7 @@ class TransactionsController extends BaseController {
             'transaction_date' => $transactionDate,
             'total_amount' => clean($_POST['total_amount'] ?? 0),
             'payment_method' => clean($_POST['payment_method'] ?? 'cash'),
-            'status' => 'completed',
+            'status' => 'completed', // Admin creates = auto completed
             'notes' => clean($_POST['notes'] ?? '')
         ];
         
@@ -107,6 +237,8 @@ class TransactionsController extends BaseController {
     }
     
     public function delete() {
+        Csrf::verifyOrFail($_POST['csrf_token'] ?? '');
+        
         $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
         $result = $this->transactionModel->delete($id);
         

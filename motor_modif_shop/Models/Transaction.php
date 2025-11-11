@@ -1,4 +1,8 @@
 <?php
+/**
+ * TRANSACTION MODEL - FIXED VERSION
+ * File: motor_modif_shop/models/Transaction.php
+ */
 
 class Transaction {
     private $conn;
@@ -8,16 +12,23 @@ class Transaction {
         $this->conn = $db;
     }
     
-    public function all($search = '', $page = 1, $limit = 10) {
+    /**
+     * Get all transactions with optional filters
+     */
+    public function all($search = '', $page = 1, $limit = 10, $status = '') {
         $offset = ($page - 1) * $limit;
         $search = "%$search%";
         
         $sql = "SELECT t.*, c.name as customer_name, c.phone as customer_phone
                 FROM {$this->table} t
                 LEFT JOIN customers c ON t.customer_id = c.id
-                WHERE t.transaction_code LIKE ? OR c.name LIKE ?
-                ORDER BY t.created_at DESC
-                LIMIT ? OFFSET ?";
+                WHERE (t.transaction_code LIKE ? OR c.name LIKE ?)";
+        
+        if ($status) {
+            $sql .= " AND t.status = '" . $this->conn->real_escape_string($status) . "'";
+        }
+        
+        $sql .= " ORDER BY t.created_at DESC LIMIT ? OFFSET ?";
         
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param('ssii', $search, $search, $limit, $offset);
@@ -27,12 +38,19 @@ class Transaction {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
     
-    public function count($search = '') {
+    /**
+     * Count transactions with optional filters
+     */
+    public function count($search = '', $status = '') {
         $search = "%$search%";
         
         $sql = "SELECT COUNT(*) as total FROM {$this->table} t
                 LEFT JOIN customers c ON t.customer_id = c.id
-                WHERE t.transaction_code LIKE ? OR c.name LIKE ?";
+                WHERE (t.transaction_code LIKE ? OR c.name LIKE ?)";
+        
+        if ($status) {
+            $sql .= " AND t.status = '" . $this->conn->real_escape_string($status) . "'";
+        }
         
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param('ss', $search, $search);
@@ -43,6 +61,23 @@ class Transaction {
         return $row['total'];
     }
     
+    /**
+     * Count by specific status
+     */
+    public function countByStatus($status) {
+        $sql = "SELECT COUNT(*) as total FROM {$this->table} WHERE status = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param('s', $status);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        
+        return $row['total'];
+    }
+    
+    /**
+     * Find transaction by ID
+     */
     public function find($id) {
         $sql = "SELECT t.*, c.name as customer_name, c.email, c.phone, c.address
                 FROM {$this->table} t
@@ -57,6 +92,9 @@ class Transaction {
         return $result->fetch_assoc();
     }
     
+    /**
+     * Get transaction details (items)
+     */
     public function getDetails($transactionId) {
         $sql = "SELECT td.*, p.name as product_name, p.code as product_code
                 FROM transaction_details td
@@ -71,6 +109,9 @@ class Transaction {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
     
+    /**
+     * Create new transaction
+     */
     public function create($data, $items) {
         $this->conn->begin_transaction();
         
@@ -119,6 +160,7 @@ class Transaction {
                     throw new Exception('Gagal menyimpan detail transaksi');
                 }
                 
+                // Update stock
                 $sqlUpdateStock = "UPDATE products SET stock = stock - ? WHERE id = ?";
                 $stmtStock = $this->conn->prepare($sqlUpdateStock);
                 $stmtStock->bind_param('ii', $item['quantity'], $item['product_id']);
@@ -138,14 +180,26 @@ class Transaction {
         }
     }
     
-    public function updateStatus($id, $status) {
-        $sql = "UPDATE {$this->table} SET status = ? WHERE id = ?";
+    /**
+     * Update transaction status with admin notes
+     */
+    public function updateStatus($id, $status, $notes = '') {
+        $adminNotes = !empty($notes) ? "\n\n[Admin]: " . $notes : '';
+        
+        $sql = "UPDATE {$this->table} 
+                SET status = ?, 
+                    notes = CONCAT(IFNULL(notes, ''), ?) 
+                WHERE id = ?";
+        
         $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('si', $status, $id);
+        $stmt->bind_param('ssi', $status, $adminNotes, $id);
         
         return ['success' => $stmt->execute()];
     }
     
+    /**
+     * Delete transaction (only pending)
+     */
     public function delete($id) {
         $transaction = $this->find($id);
         
@@ -162,6 +216,7 @@ class Transaction {
         try {
             $details = $this->getDetails($id);
             
+            // Restore stock
             foreach ($details as $detail) {
                 $sqlRestore = "UPDATE products SET stock = stock + ? WHERE id = ?";
                 $stmtRestore = $this->conn->prepare($sqlRestore);
@@ -169,6 +224,7 @@ class Transaction {
                 $stmtRestore->execute();
             }
             
+            // Delete transaction
             $sql = "DELETE FROM {$this->table} WHERE id = ?";
             $stmt = $this->conn->prepare($sql);
             $stmt->bind_param('i', $id);

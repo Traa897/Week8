@@ -284,8 +284,14 @@ $isUserRole = Auth::isUser();
                 </a>
                 
                 <div class="menu-section">Transaksi</div>
-                <a href="index.php?c=transactions&a=index" class="<?= (isset($_GET['c']) && $_GET['c'] == 'transactions') ? 'active' : '' ?>">
-                    <i class="fas fa-shopping-cart"></i> Transaksi
+                
+                <!-- PENDING ORDERS - TANPA BADGE COUNT -->
+                <a href="index.php?c=transactions&a=pending" class="<?= (isset($_GET['c']) && $_GET['c'] == 'transactions' && isset($_GET['a']) && $_GET['a'] == 'pending') ? 'active' : '' ?>">
+                    <i class="fas fa-clock text-warning"></i> Pending Orders
+                </a>
+                
+                <a href="index.php?c=transactions&a=index" class="<?= (isset($_GET['c']) && $_GET['c'] == 'transactions' && (!isset($_GET['a']) || $_GET['a'] == 'index')) ? 'active' : '' ?>">
+                    <i class="fas fa-shopping-cart"></i> Semua Transaksi
                 </a>
                 
                 <div class="menu-section">System</div>

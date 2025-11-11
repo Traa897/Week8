@@ -1,4 +1,4 @@
-<!-- views/transactions/index.php -->
+<!-- views/transactions/index.php - WITH STATUS FILTER -->
 
 <div class="container-fluid">
     <div class="row mb-3">
@@ -12,11 +12,47 @@
         </div>
     </div>
 
+    <!-- STATUS TABS -->
     <div class="card mb-3">
         <div class="card-body">
+            <ul class="nav nav-pills mb-3">
+                <li class="nav-item">
+                    <a class="nav-link <?= empty($status) ? 'active' : '' ?>" 
+                       href="index.php?c=transactions&a=index">
+                        <i class="fas fa-list"></i> Semua
+                        <span class="badge bg-secondary ms-1"><?= $total ?></span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= $status === 'pending' ? 'active' : '' ?>" 
+                       href="index.php?c=transactions&a=index&status=pending">
+                        <i class="fas fa-clock"></i> Pending
+                        <span class="badge bg-warning text-dark ms-1"><?= $pendingCount ?></span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= $status === 'completed' ? 'active' : '' ?>" 
+                       href="index.php?c=transactions&a=index&status=completed">
+                        <i class="fas fa-check-circle"></i> Completed
+                        <span class="badge bg-success ms-1"><?= $completedCount ?></span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= $status === 'cancelled' ? 'active' : '' ?>" 
+                       href="index.php?c=transactions&a=index&status=cancelled">
+                        <i class="fas fa-times-circle"></i> Cancelled
+                        <span class="badge bg-danger ms-1"><?= $cancelledCount ?></span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- SEARCH -->
             <form method="GET" action="index.php">
                 <input type="hidden" name="c" value="transactions">
                 <input type="hidden" name="a" value="index">
+                <?php if ($status): ?>
+                <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
+                <?php endif; ?>
                 <div class="row">
                     <div class="col-md-10">
                         <input type="text" name="search" class="form-control" 
@@ -35,7 +71,12 @@
 
     <div class="card">
         <div class="card-body">
-            <p class="text-muted">Total: <?= $total ?> transaksi</p>
+            <p class="text-muted">
+                Menampilkan: <?= $total ?> transaksi
+                <?php if ($status): ?>
+                    (<?= strtoupper($status) ?>)
+                <?php endif; ?>
+            </p>
             
             <?php if (empty($transactions)): ?>
                 <div class="alert alert-info">Belum ada transaksi</div>
@@ -111,7 +152,7 @@
                     <ul class="pagination justify-content-center">
                         <?php for($i = 1; $i <= $totalPages; $i++): ?>
                             <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                                <a class="page-link" href="index.php?c=transactions&a=index&page=<?= $i ?>&search=<?= urlencode($search) ?>">
+                                <a class="page-link" href="index.php?c=transactions&a=index&page=<?= $i ?>&search=<?= urlencode($search) ?>&status=<?= $status ?>">
                                     <?= $i ?>
                                 </a>
                             </li>
